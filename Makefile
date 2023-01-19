@@ -3,7 +3,8 @@ BIN:=iso-chooser-menu
 
 URL:=http://cdimage.ubuntu.com/streams/v1/com.ubuntu.cdimage.daily:ubuntu-server.json
 
-CFLAGS+=-std=c11 -Wall -Werror -Wfatal-errors -Wformat -Werror=format-security
+# CFLAGS+=-std=c11 -Wall -Werror -Wfatal-errors -Wformat -Werror=format-security
+CFLAGS+=-std=c11 -Wall -Werror -Wfatal-errors
 CFLAGS+=-Wpedantic
 
 # CFLAGS+=-g
