@@ -101,9 +101,11 @@ char *saprintf(char *fmt, ...)
     va_list ap;
     va_start(ap, fmt);
 
-    char *ret = NULL;
-    vasprintf(&ret, fmt, ap);
-    return ret;
+    char *out = NULL;
+    int rv = vasprintf(&out, fmt, ap);
+    if(rv == -1) return NULL;
+
+    return out;
 }
 
 typedef enum {
@@ -277,6 +279,7 @@ void write_output(char *fname, iso_data_t *iso_data)
 
 void choice_handle_event(args_t *args, choices_t *choices, choice_event evt)
 {
+    iso_data_t *cur = NULL;
     switch(evt) {
         case DECREASE:
             if(choices->cur > 0) {
@@ -284,7 +287,7 @@ void choice_handle_event(args_t *args, choices_t *choices, choice_event evt)
             }
             break;
         case SELECT:
-            iso_data_t *cur = choices->values[choices->cur];
+            cur = choices->values[choices->cur];
             write_output(args->outfile, cur);
             syslog(LOG_DEBUG, "selected:%s %s %d",
                    cur->label, cur->url, cur->size);
