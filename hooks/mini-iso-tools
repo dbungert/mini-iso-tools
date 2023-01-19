@@ -40,4 +40,4 @@ copy_file terminfo /lib/terminfo/l/linux
 copy_file script /usr/lib/mini-iso-tools/iso-menu-session
 copy_file script /usr/lib/mini-iso-tools/get_memmap_directive
 copy_file font /usr/lib/mini-iso-tools/subiquity.psf
-copy_exec /usr/lib/mini-iso-tools /usr/bin/mini-iso-tools
+copy_exec /usr/lib/mini-iso-tools/iso-chooser-menu /usr/bin/mini-iso-tools/iso-chooser-menu
