@@ -28,7 +28,7 @@ iso_chooser_step1() {
 
     /usr/sbin/agetty --skip-login \
         --login-program /usr/lib/mini-iso-tools/iso-menu-session \
-        tty1 linux
+        - linux
 
     if [ ! -f /out.vars ] ; then
         echo "ISO menu failed, dropping to debug shell"
