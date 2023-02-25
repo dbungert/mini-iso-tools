@@ -165,7 +165,7 @@ menu_t *menu_create(resources_t *resources, choices_t *choices)
     ret->menu = new_menu(ret->items);
     set_menu_win(ret->menu, ret->window);
     set_menu_sub(ret->menu, ret->window);
-    set_menu_mark(ret->menu, "");
+    set_menu_mark(ret->menu, NULL);
     set_menu_fore(ret->menu, COLOR_PAIR(resources->white_green));
     post_menu(ret->menu);
 
