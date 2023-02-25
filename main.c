@@ -121,8 +121,7 @@ ITEM *button_item(char *label, int textwidth)
 {
     /* Simulate the appearance of buttons in Subiquity.
      * The unicode character is the right-pointing smaller tringle arrow. */
-    char *text = saprintf("[ %-*s \u25b8 ]", textwidth, label);
-    return new_item(text, NULL);
+    return new_item(saprintf("[ %-*s \u25b8 ]", textwidth, label), NULL);
 }
 
 typedef struct _menu {
