@@ -72,15 +72,16 @@ typedef struct _colors {
     int ubuntu_orange;
     int text_white;
     int back_green;
-
-    cchar_t half_block_upper;
-    cchar_t space;
-    cchar_t half_block_lower;
+    int black;
 
     short black_orange;
     short white_orange;
     short white_green;
-} colors_t;
+
+    cchar_t half_block_upper;
+    cchar_t space;
+    cchar_t half_block_lower;
+} resources_t;
 
 choices_t *read_iso_choices(args_t *args)
 {
@@ -102,7 +103,7 @@ int vertical_center(int len)
     return 3 + (LINES - 3 - len) / 2;
 }
 
-void orange_banner(colors_t *colors, char *label)
+void top_banner(resources_t *resources, char *label)
 {
     int x1 = 0;
     int w = COLS;
@@ -111,13 +112,13 @@ void orange_banner(colors_t *colors, char *label)
      * - draw black on orange for the half-block rows
      * - draw white on orange for the text row */
 
-    mvhline_set(0, x1, &colors->half_block_upper, w);
-    mvhline_set(1, x1, &colors->space, w);
-    mvhline_set(2, x1, &colors->half_block_lower, w);
+    mvhline_set(0, x1, &resources->half_block_upper, w);
+    mvhline_set(1, x1, &resources->space, w);
+    mvhline_set(2, x1, &resources->half_block_lower, w);
 
-    attron(COLOR_PAIR(colors->white_orange));
+    attron(COLOR_PAIR(resources->white_orange));
     mvaddstr(1, horizontal_center(strlen(label)), label);
-    attroff(COLOR_PAIR(colors->white_orange));
+    attroff(COLOR_PAIR(resources->white_orange));
 }
 
 void button(int y, int x, char *label, int textwidth)
@@ -129,7 +130,7 @@ void button(int y, int x, char *label, int textwidth)
     free(button_text);
 }
 
-void add_chooser(colors_t *colors, choices_t *choices)
+void add_chooser(resources_t *resources, choices_t *choices)
 {
     int longest = 0;
     for(int i = 0; i < choices->len; i++) {
@@ -141,11 +142,11 @@ void add_chooser(colors_t *colors, choices_t *choices)
     for(int i = 0; i < choices->len; i++) {
         int y = center_y + i;
         if(i == choices->cur) {
-            attron(COLOR_PAIR(colors->white_green));
+            attron(COLOR_PAIR(resources->white_green));
         }
         button(y, center_x, choices->values[i]->label, longest);
         if(i == choices->cur) {
-            attroff(COLOR_PAIR(colors->white_green));
+            attroff(COLOR_PAIR(resources->white_green));
         }
     }
 }
@@ -211,36 +212,35 @@ void exit_cb(void)
     endwin();
 }
 
-colors_t *setup_colors()
+resources_t *setup_resources()
 {
-    if(start_color() == ERR) {
-        syslog(LOG_ERR, "start_color failure");
-        return NULL;
-    }
-
-    colors_t *ret = calloc(sizeof(colors_t), 1);
+    resources_t *ret = calloc(sizeof(resources_t), 1);
     ret->ubuntu_orange = COLOR_RED;
     ret->text_white = COLOR_WHITE;
     ret->back_green = COLOR_GREEN;
+    ret->black = COLOR_BLACK;
 
     syslog(LOG_DEBUG, "can_change_color [%d]", can_change_color());
     if(can_change_color()) {
         init_color_from_bytes(ret->ubuntu_orange, 0xE9, 0x54, 0x20);
         init_color_from_bytes(ret->text_white, 0xFF, 0xFF, 0xFF);
         init_color_from_bytes(ret->back_green, 0x0E, 0x84, 0x20);
+        init_color_from_bytes(ret->black, 0x00, 0x00, 0x00);
     } else {
         /* These are terminal 256 color codes, see
          * https://www.ditig.com/256-colors-cheat-sheet for an example. */
         ret->ubuntu_orange = 202;  /* not really but kinda close */
         ret->text_white = 231;
         ret->back_green = 28;
+        ret->black = 0;
     }
 
-    ret->black_orange = 1;
-    init_pair(ret->black_orange, COLOR_BLACK, ret->ubuntu_orange);
-    ret->white_orange = 2;
+    short color_pair_ids = 1;
+    ret->black_orange = color_pair_ids++;
+    init_pair(ret->black_orange, ret->black, ret->ubuntu_orange);
+    ret->white_orange = color_pair_ids++;
     init_pair(ret->white_orange, ret->text_white, ret->ubuntu_orange);
-    ret->white_green = 3;
+    ret->white_green = color_pair_ids++;
     init_pair(ret->white_green, ret->text_white, ret->back_green);
 
     setcchar(&ret->half_block_upper, L"\u2580", 0, ret->black_orange, NULL);
@@ -276,8 +276,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    keypad(stdscr, TRUE);
+    if(start_color() == ERR) {
+        syslog(LOG_ERR, "start_color failure");
+        return 1;
+    }
 
+    keypad(stdscr, TRUE);
     cbreak();
 
     curs_set(0); /* hide */
@@ -287,7 +291,7 @@ int main(int argc, char **argv)
     int ch = 0;
     refresh();
 
-    colors_t *colors = setup_colors();
+    resources_t *resources = setup_resources();
 
 #if 0
     char *new_choices[3] = {
@@ -312,7 +316,7 @@ int main(int argc, char **argv)
     set_menu_mark(my_menu, "");
     /* box(my_menu_win, 0, 0); */
 
-    orange_banner("Choose an Ubuntu version to install");
+    top_banner("Choose an Ubuntu version to install");
 
     set_menu_fore(my_menu, COLOR_PAIR(3));
     post_menu(my_menu);
@@ -339,8 +343,8 @@ int main(int argc, char **argv)
 #endif
 
     while(continuing) {
-        orange_banner(colors, "Choose an Ubuntu version to install");
-        add_chooser(colors, iso_info);
+        top_banner(resources, "Choose an Ubuntu version to install");
+        add_chooser(resources, iso_info);
         redrawwin(stdscr);
         ch = getch();
         switch(ch) {
