@@ -180,7 +180,6 @@ menu_t *menu_create(resources_t *resources, choices_t *choices)
     set_menu_sub(ret->menu, ret->window);
     set_menu_mark(ret->menu, NULL);
     set_menu_fore(ret->menu, COLOR_PAIR(resources->white_green));
-    post_menu(ret->menu);
 
     return ret;
 }
@@ -261,51 +260,9 @@ resources_t *resources_create()
     return ret;
 }
 
-int main(int argc, char **argv)
+void menu_loop(menu_t *menu)
 {
-    args_t *args = args_create(argc, argv);
-    if(!args) usage(argv[0]);
-
-    setlocale(LC_ALL, "C.UTF-8");
-
-    choices_t *iso_info = read_iso_choices(args);
-    if(!iso_info) {
-        syslog(LOG_ERR, "failed to read JSON data");
-        return 1;
-    }
-
-    if(!initscr()) {
-        syslog(LOG_ERR, "initscr failure");
-        return 1;
-    }
-
-    atexit(exit_cb);
-
-    noecho();
-
-    if(!has_colors()) {
-        syslog(LOG_ERR, "has_colors failure");
-        return 1;
-    }
-
-    if(start_color() == ERR) {
-        syslog(LOG_ERR, "start_color failure");
-        return 1;
-    }
-
-    keypad(stdscr, TRUE);
-    cbreak();
-    curs_set(0); /* hide */
-
-    resources_t *resources = resources_create();
-    top_banner(resources, "Choose an Ubuntu version to install");
-
-    menu_t *menu = menu_create(resources, iso_info);
-    refresh();
-
-    bool continuing = true;
-    while(continuing) {
-        wrefresh(menu->window);
+    while(true) {
         switch(wgetch(menu->window)) {
             case KEY_DOWN:
                 menu_driver(menu->menu, REQ_DOWN_ITEM);
@@ -317,12 +274,61 @@ int main(int argc, char **argv)
             case '\r':
             case '\n':
             case ' ':
-                continuing = false;
-                break;
+                return;
             default:
                 break;
         }
+        wrefresh(menu->window);
     }
+}
+
+bool setup_ncurses()
+{
+    if(!initscr()) {
+        syslog(LOG_ERR, "initscr failure");
+        return false;
+    }
+
+    atexit(exit_cb);
+    noecho();
+
+    if(!has_colors()) {
+        syslog(LOG_ERR, "has_colors failure");
+        return false;
+    }
+
+    if(start_color() == ERR) {
+        syslog(LOG_ERR, "start_color failure");
+        return false;
+    }
+
+    cbreak();
+    curs_set(0); /* hide */
+    return true;
+}
+
+int main(int argc, char **argv)
+{
+    args_t *args = args_create(argc, argv);
+    if(!args) usage(argv[0]);
+
+    choices_t *iso_info = read_iso_choices(args);
+    if(!iso_info) {
+        syslog(LOG_ERR, "failed to read JSON data");
+        return 1;
+    }
+
+    setlocale(LC_ALL, "C.UTF-8");
+
+    if(!setup_ncurses()) return 1;
+
+    resources_t *resources = resources_create();
+    top_banner(resources, "Choose an Ubuntu version to install");
+    menu_t *menu = menu_create(resources, iso_info);
+    post_menu(menu->menu);
+    refresh();
+
+    menu_loop(menu);
 
     write_output(args->outfile, menu_get_selected_item(menu));
 
