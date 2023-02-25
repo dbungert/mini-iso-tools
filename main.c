@@ -71,10 +71,6 @@ typedef struct _colors {
     short black_orange;
     short white_orange;
     short white_green;
-
-    cchar_t half_block_upper;
-    cchar_t space;
-    cchar_t half_block_lower;
 } resources_t;
 
 choices_t *read_iso_choices(args_t *args)
@@ -97,15 +93,24 @@ int vertical_center(int len)
     return 3 + (LINES - 3 - len) / 2;
 }
 
+void draw_line(int y, wchar_t *wchar, short color)
+{
+    cchar_t cell;
+    setcchar(&cell, wchar, 0, color, NULL);
+    mvhline_set(y, 0, &cell, COLS);
+}
+
 void top_banner(resources_t *resources, char *label)
 {
     /* Simulate the banner from Subiquity.
      * - draw black on orange for the half-block rows
      * - draw white on orange for the text row */
 
-    mvhline_set(0, 0, &resources->half_block_upper, COLS);
-    mvhline_set(1, 0, &resources->space, COLS);
-    mvhline_set(2, 0, &resources->half_block_lower, COLS);
+    /* half-block upper */
+    draw_line(0, L"\u2580", resources->black_orange);
+    draw_line(1, L" ", resources->white_orange);
+    /* half-block lower */
+    draw_line(2, L"\u2584", resources->black_orange);
 
     attron(COLOR_PAIR(resources->white_orange));
     mvaddstr(1, horizontal_center(strlen(label)), label);
@@ -235,10 +240,6 @@ resources_t *setup_resources()
     init_pair(ret->white_orange, ret->text_white, ret->ubuntu_orange);
     ret->white_green = color_pair_ids++;
     init_pair(ret->white_green, ret->text_white, ret->back_green);
-
-    setcchar(&ret->half_block_upper, L"\u2580", 0, ret->black_orange, NULL);
-    setcchar(&ret->space, L" ", 0, ret->white_orange, NULL);
-    setcchar(&ret->half_block_lower, L"\u2584", 0, ret->black_orange, NULL);
     return ret;
 }
 
