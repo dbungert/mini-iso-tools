@@ -80,5 +80,6 @@ void choices_free(choices_t *c)
     for(int i = 0; i < c->len; i++) {
         iso_data_free(c->values[i]);
     }
+    free(c->values);
     free(c);
 }

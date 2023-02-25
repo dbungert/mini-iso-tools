@@ -122,7 +122,6 @@ ITEM *button_item(char *label, int textwidth)
     /* Simulate the appearance of buttons in Subiquity.
      * The unicode character is the right-pointing smaller tringle arrow. */
     char *text = saprintf("[ %-*s \u25b8 ]", textwidth, label);
-    /* FIXME leak */
     return new_item(text, NULL);
 }
 
@@ -137,6 +136,21 @@ iso_data_t *menu_get_selected_item(menu_t *menu)
 {
     int idx = item_index(current_item(menu->menu));
     return menu->choices->values[idx];
+}
+
+void menu_free(menu_t *menu)
+{
+    if(!menu) return;
+
+    for(int i = 0; menu->items[i]; i++) {
+        free((void *)item_name(menu->items[i]));
+        free_item(menu->items[i]);
+    }
+
+    delwin(menu->window);
+    free_menu(menu->menu);
+    free(menu->items);
+    free(menu);
 }
 
 menu_t *menu_create(resources_t *resources, choices_t *choices)
@@ -210,7 +224,12 @@ void exit_cb(void)
     endwin();
 }
 
-resources_t *setup_resources()
+void resources_free(resources_t *resources)
+{
+    free(resources);
+}
+
+resources_t *resources_create()
 {
     resources_t *ret = calloc(sizeof(resources_t), 1);
     ret->ubuntu_orange = COLOR_RED;
@@ -279,7 +298,7 @@ int main(int argc, char **argv)
     cbreak();
     curs_set(0); /* hide */
 
-    resources_t *resources = setup_resources();
+    resources_t *resources = resources_create();
     top_banner(resources, "Choose an Ubuntu version to install");
 
     menu_t *menu = menu_create(resources, iso_info);
@@ -308,7 +327,9 @@ int main(int argc, char **argv)
 
     write_output(args->outfile, menu_get_selected_item(menu));
 
+    menu_free(menu);
     choices_free(iso_info);
+    resources_free(resources);
     args_free(args);
 
     return 0;
