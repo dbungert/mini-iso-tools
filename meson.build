@@ -8,7 +8,9 @@ add_global_arguments(['-DARCH="@0@"'.format(arch), '-Wfatal-errors'],
                      language:'c')
 
 srcs = ['main.c', 'args.c', 'common.c', 'json.c']
-dependencies = [dependency('ncursesw'), dependency('json-c')]
+dependencies = [dependency('json-c'),
+                dependency('menuw'),
+                dependency('ncursesw')]
 
 menu = executable('iso-chooser-menu',
                   srcs,
