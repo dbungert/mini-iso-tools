@@ -119,11 +119,11 @@ void top_banner(resources_t *resources, char *label)
 
 ITEM *button_item(char *label, int textwidth)
 {
-    /* Simulate the appearance of buttons in Subiquity.  The unicode character
-     * is the right-pointing smaller tringle arrow */
+    /* Simulate the appearance of buttons in Subiquity.
+     * The unicode character is the right-pointing smaller tringle arrow. */
     char *text = saprintf("[ %-*s \u25b8 ]", textwidth, label);
     /* FIXME leak */
-    return new_item(text, "");
+    return new_item(text, NULL);
 }
 
 typedef struct _menu {
