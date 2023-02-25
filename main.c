@@ -62,12 +62,6 @@ noreturn void usage(char *prog)
     exit(1);
 }
 
-typedef enum {
-    DECREASE=-1,
-    SELECT=0,
-    INCREASE=1,
-} choice_event;
-
 typedef struct _colors {
     int ubuntu_orange;
     int text_white;
@@ -105,50 +99,72 @@ int vertical_center(int len)
 
 void top_banner(resources_t *resources, char *label)
 {
-    int x1 = 0;
-    int w = COLS;
-
     /* Simulate the banner from Subiquity.
      * - draw black on orange for the half-block rows
      * - draw white on orange for the text row */
 
-    mvhline_set(0, x1, &resources->half_block_upper, w);
-    mvhline_set(1, x1, &resources->space, w);
-    mvhline_set(2, x1, &resources->half_block_lower, w);
+    mvhline_set(0, 0, &resources->half_block_upper, COLS);
+    mvhline_set(1, 0, &resources->space, COLS);
+    mvhline_set(2, 0, &resources->half_block_lower, COLS);
 
     attron(COLOR_PAIR(resources->white_orange));
     mvaddstr(1, horizontal_center(strlen(label)), label);
     attroff(COLOR_PAIR(resources->white_orange));
 }
 
-void button(int y, int x, char *label, int textwidth)
+ITEM *button_item(char *label, int textwidth)
 {
-    char *button_text = saprintf("[ %-*s \u25b8 ]", textwidth, label);
     /* Simulate the appearance of buttons in Subiquity.  The unicode character
      * is the right-pointing smaller tringle arrow */
-    mvaddstr(y, x, button_text);
-    free(button_text);
+    char *text = saprintf("[ %-*s \u25b8 ]", textwidth, label);
+    /* FIXME leak */
+    return new_item(text, "");
 }
 
-void add_chooser(resources_t *resources, choices_t *choices)
+typedef struct _menu {
+    WINDOW *window;
+    MENU *menu;
+    ITEM **items;
+    choices_t *choices;
+} menu_t;
+
+iso_data_t *menu_get_selected_item(menu_t *menu)
 {
+    int idx = item_index(current_item(menu->menu));
+    return menu->choices->values[idx];
+}
+
+menu_t *menu_create(resources_t *resources, choices_t *choices)
+{
+    menu_t *ret = calloc(sizeof(menu_t), 1);
+    ret->choices = choices;
+    ret->items = calloc(sizeof(ITEM *), choices->len + 1);
+
     int longest = 0;
     for(int i = 0; i < choices->len; i++) {
         longest = MAX(longest, (int)strlen(choices->values[i]->label));
     }
-    /* The + 6 accounts for the button text around the label */
-    int center_x = horizontal_center(longest + 6);
-    int center_y = vertical_center(choices->len);
     for(int i = 0; i < choices->len; i++) {
-        int y = center_y + i;
-        if(i == choices->cur) {
-            attron(COLOR_PAIR(resources->white_green));
-        }
-        button(y, center_x, choices->values[i]->label, longest);
-        if(i == choices->cur) {
-            attroff(COLOR_PAIR(resources->white_green));
-        }
+        ret->items[i] = button_item(choices->values[i]->label, longest);
     }
+
+    /* The +6 accounts for the button text around the label. */
+    int width = longest + 6;
+
+    int center_x = horizontal_center(width);
+    int center_y = vertical_center(choices->len);
+
+    ret->window = newwin(choices->len, width, center_y, center_x);
+    keypad(ret->window, TRUE);
+
+    ret->menu = new_menu(ret->items);
+    set_menu_win(ret->menu, ret->window);
+    set_menu_sub(ret->menu, ret->window);
+    set_menu_mark(ret->menu, "");
+    set_menu_fore(ret->menu, COLOR_PAIR(resources->white_green));
+    post_menu(ret->menu);
+
+    return ret;
 }
 
 int color_byte_to_ncurses(uint8_t color_byte)
@@ -173,36 +189,13 @@ void write_output(char *fname, iso_data_t *iso_data)
         exit(1);
     }
 
+    syslog(LOG_DEBUG, "selected: %s", iso_data->label);
+
     fprintf(f, "MEDIA_URL=\"%s\"\n", iso_data->url);
     fprintf(f, "MEDIA_LABEL=\"%s\"\n", iso_data->label);
     fprintf(f, "MEDIA_256SUM=\"%s\"\n", iso_data->sha256sum);
     fprintf(f, "MEDIA_SIZE=\"%" PRId64 "\"\n", iso_data->size);
     fclose(f);
-}
-
-void choice_handle_event(args_t *args, choices_t *choices, choice_event evt)
-{
-    switch(evt) {
-        case DECREASE:
-            if(choices->cur > 0) {
-                choices->cur--;
-            }
-            break;
-        case SELECT:
-            iso_data_t *cur = choices->values[choices->cur];
-            write_output(args->outfile, cur);
-            syslog(LOG_DEBUG, "selected:%s %s %" PRId64,
-                   cur->label, cur->url, cur->size);
-            break;
-        case INCREASE:
-            if(choices->cur < choices->len - 1) {
-                choices->cur++;
-            }
-            break;
-        default:
-            syslog(LOG_ERR, "invalid event id [%d]", evt);
-            exit(1);
-    }
 }
 
 void exit_cb(void)
@@ -283,88 +276,36 @@ int main(int argc, char **argv)
 
     keypad(stdscr, TRUE);
     cbreak();
-
     curs_set(0); /* hide */
+
+    resources_t *resources = setup_resources();
+    top_banner(resources, "Choose an Ubuntu version to install");
+
+    menu_t *menu = menu_create(resources, iso_info);
     refresh();
 
     bool continuing = true;
-    int ch = 0;
-    refresh();
-
-    resources_t *resources = setup_resources();
-
-#if 0
-    char *new_choices[3] = {
-        saprintf("[ %s \u25b8 ]", "one"),
-        saprintf("[ %s \u25b8 ]", "two"),
-        saprintf("[ %s \u25b8 ]", "three"),
-    };
-    int n_new_choices = 3;
-
-    ITEM **my_items = (ITEM **)calloc(n_new_choices + 1, sizeof(ITEM *));
-
-    for(int i = 0; i < n_new_choices; ++i)
-        my_items[i] = new_item(new_choices[i], NULL);
-    my_items[n_new_choices] = (ITEM *)NULL;
-
-    WINDOW *my_menu_win = newwin(10, 40, 10, 10);
-    MENU *my_menu = new_menu((ITEM **)my_items);
-    keypad(my_menu_win, TRUE);
-
-    set_menu_win(my_menu, my_menu_win);
-    set_menu_sub(my_menu, derwin(my_menu_win, 6, 38, 1, 1));
-    set_menu_mark(my_menu, "");
-    /* box(my_menu_win, 0, 0); */
-
-    top_banner("Choose an Ubuntu version to install");
-
-    set_menu_fore(my_menu, COLOR_PAIR(3));
-    post_menu(my_menu);
-    wrefresh(my_menu_win);
-    refresh();
-
-    while((ch = wgetch(my_menu_win)) != KEY_F(1))
-    {       switch(ch)
-        {	case KEY_DOWN:
-            menu_driver(my_menu, REQ_DOWN_ITEM);
-            break;
-            case KEY_UP:
-            menu_driver(my_menu, REQ_UP_ITEM);
-            break;
-            case KEY_NPAGE:
-            menu_driver(my_menu, REQ_SCR_DPAGE);
-            break;
-            case KEY_PPAGE:
-            menu_driver(my_menu, REQ_SCR_UPAGE);
-            break;
-        }
-        wrefresh(my_menu_win);
-    }
-#endif
-
     while(continuing) {
-        top_banner(resources, "Choose an Ubuntu version to install");
-        add_chooser(resources, iso_info);
-        redrawwin(stdscr);
-        ch = getch();
-        switch(ch) {
+        wrefresh(menu->window);
+        switch(wgetch(menu->window)) {
             case KEY_DOWN:
-                choice_handle_event(args, iso_info, INCREASE);
+                menu_driver(menu->menu, REQ_DOWN_ITEM);
                 break;
             case KEY_UP:
-                choice_handle_event(args, iso_info, DECREASE);
+                menu_driver(menu->menu, REQ_UP_ITEM);
                 break;
             case KEY_ENTER:
             case '\r':
             case '\n':
             case ' ':
-                choice_handle_event(args, iso_info, SELECT);
                 continuing = false;
                 break;
             default:
                 break;
         }
     }
+
+    write_output(args->outfile, menu_get_selected_item(menu));
 
     choices_free(iso_info);
     args_free(args);

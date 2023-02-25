@@ -55,6 +55,7 @@ void iso_data_free(iso_data_t *iso_data)
     if(!iso_data) return;
     free(iso_data->label);
     free(iso_data->url);
+    free(iso_data->sha256sum);
     free(iso_data);
 }
 

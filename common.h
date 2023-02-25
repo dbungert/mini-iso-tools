@@ -36,7 +36,6 @@ typedef struct _iso_data
 typedef struct _choices
 {
     int len;
-    int cur;
     iso_data_t **values;
 } choices_t;
 
