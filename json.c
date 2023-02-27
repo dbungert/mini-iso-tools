@@ -29,7 +29,6 @@ criteria_t content_id_to_criteria[] = {
         .content_id = "com.ubuntu.cdimage.daily:ubuntu",
         .os = "ubuntu",
         .image_type = "daily-live",
-        .urlbase = "https://cdimage.ubuntu.com",
         .descriptor = "Ubuntu Desktop",
     },
     {
