@@ -2,4 +2,5 @@
 iso-chooser-menu
 out.vars
 test/*.test
+builddir*
 /.tags
