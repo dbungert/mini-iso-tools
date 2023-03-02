@@ -1,6 +1,2 @@
-*.o
-iso-chooser-menu
-out.vars
-test/*.test
-builddir*
+/builddir*
 /.tags
