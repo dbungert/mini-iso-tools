@@ -11,14 +11,11 @@ jobs:
         image:
           # - ubuntu-daily:jammy
           - ubuntu-daily:lunar
+
     steps:
     - uses: canonical/setup-lxd@v0.1.0
     - uses: actions/checkout@v2
-    - run: lxc launch ${{ matrix.image }} u1
-    - run: lxc exec u1 -- apt install hello
-
-    # - name: run
-    #   run: >
-    #     sudo
-    #     ./scripts/test-in-lxd.sh ${{ matrix.image }}
-    #     "dpkg-buildpackage -b -uc"
+    - name: lxc launch
+      run: lxc launch ${{ matrix.image }} u1
+    - name: test
+      run: sudo ./scripts/test-in-lxd.sh u1
