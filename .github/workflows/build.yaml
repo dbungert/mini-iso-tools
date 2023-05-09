@@ -12,8 +12,10 @@ jobs:
           # - ubuntu-daily:jammy
           - ubuntu-daily:lunar
     steps:
-    - uses: canonical/setup-lxd
-    - uses: actions/checkout@v2
+    - name: setup-lxd
+      uses: canonical/setup-lxd
+    - name: checkout
+      uses: actions/checkout@v2
     - name: run
       run: lxc launch ${{ matrix.image }} u1
     - name: run
