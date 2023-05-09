@@ -13,7 +13,7 @@ jobs:
           - ubuntu-daily:lunar
 
     steps:
-    - uses: canonical/setup-lxd@v0.1.0
+    # - uses: canonical/setup-lxd@v0.1.0
     - uses: actions/checkout@v2
     - name: lxc launch
       run: lxc launch ${{ matrix.image }} u1
