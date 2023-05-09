@@ -4,18 +4,15 @@ on: [push, pull_request]
 
 jobs:
   dpkg-buildpackage:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
         image:
-          # - ubuntu-daily:jammy
+          - ubuntu-daily:jammy
           - ubuntu-daily:lunar
-
     steps:
-    # - uses: canonical/setup-lxd@v0.1.0
+    - uses: canonical/setup-lxd@v0.1.0
     - uses: actions/checkout@v2
-    - name: lxc launch
-      run: lxc launch ${{ matrix.image }} u1
     - name: test
-      run: sudo ./scripts/test-in-lxd.sh u1
+      run: sudo ./scripts/test-in-lxd.sh ${{ matrix.image }}
