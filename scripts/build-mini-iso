@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# this is a bootleg build script that simulates the changes I eventually want
+# to incorporate into livecd-rootfs
+
+set -ex
+
+# A new archive package that contains scripts, a ncurses based menu, and other
+# things going into the boot chooser iso.  For the moment accept that it does
+# initramfs magic to stage the things required.
+dir=/home/dbungert/dev/github/canonical/mini-iso-tools
+# building for kinetic at the moment because as of yet I've been too lazy to
+# upload a new cd-boot-images-amd64, which is needed as it hasn't been built
+# yet for lunar and it needs a rebuild to match new grub
+# series=kinetic
+series=lunar
+host=$series-mini-iso
+
+rm -fr tree images mini.iso
+
+cp -a /usr/share/cd-boot-images-amd64/tree tree
+cp -a /usr/share/cd-boot-images-amd64/images images
+
+# iso-chooser-menu is a kernel command line option the boot chooser scripts
+# look for to know to show the menu
+cat > tree/boot/grub/grub.cfg <<EOF
+menuentry "Choose an Ubuntu version to install" {
+        set gfxpayload=keep
+        linux /casper/vmlinuz iso-chooser-menu casper-getty ip=dhcp ---
+        initrd /casper/initrd
+}
+EOF
+
+# This is a required step to make the initrd actually use casper.  This
+# triggers logic in the casper initramfs hooks to use casper for setting the
+# BOOT variable.
+casperize_conf=$(mktemp)
+cat <<EOF > $casperize_conf
+export CASPER_GENERATE_UUID=1
+EOF
+
+deps="linux-generic casper kexec-tools"
+
+# launch a container and have it build my initrd
+if false; then
+:
+lxc delete --force $host || true
+lxc launch ubuntu-daily:$series $host
+lxc file push $casperize_conf $host/etc/initramfs-tools/conf.d/casperize.conf
+lxc exec $host -- sh -c "DEBIAN_FRONTEND=noninteractive apt update"
+lxc exec $host -- sh -c "DEBIAN_FRONTEND=noninteractive apt dist-upgrade -y"
+lxc exec $host -- sh -c "DEBIAN_FRONTEND=noninteractive apt install -y $deps"
+# lxc exec $host -- apt remove -y mini-iso-tools
+fi
+lxc exec $host -- rm -f /tmp/mini-iso-tools_0.1.0_amd64.deb
+lxc file push $dir/mini-iso-tools_0.1.0_amd64.deb $host/tmp/
+lxc exec $host -- dpkg -i /tmp/mini-iso-tools_0.1.0_amd64.deb
+
+mkdir -p tree/casper
+vmlinuz_path=$(lxc exec $host -- realpath /boot/vmlinuz)
+lxc file pull $host/$vmlinuz_path tree/casper/vmlinuz
+initrd_path=$(lxc exec $host -- realpath /boot/initrd.img)
+lxc file pull $host/$initrd_path tree/casper/initrd
+
+$(cat /usr/share/cd-boot-images-amd64/xorriso-cmd.txt) -o mini.iso
