@@ -1,0 +1,16 @@
+#!/bin/bash -eux
+
+imagename=mini-iso-tools-builder
+
+args=()
+args+=(-f podman/Containerfile)
+args+=(--build-arg=DEBOOTSTRAP_PROXY=${DEBOOTSTRAP_PROXY:-})
+# args+=(--build-arg=SOURCE=$PWD)
+# args+=(--no-cache)
+args+=(-v $PWD:/build/src:O)
+args+=(-t mini-iso-tools-builder)
+args+=(.)
+
+# podman build "${args[@]}"
+
+podman run -i -t $imagename

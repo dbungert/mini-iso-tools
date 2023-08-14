@@ -1,0 +1,32 @@
+FROM docker.io/library/ubuntu:devel
+
+ARG DEBOOTSTRAP_PROXY=""
+RUN if [ -n "$DEBOOTSTRAP_PROXY" ] ; then \
+    echo 'Acquire::http::Proxy "$DEBOOTSTRAP_PROXY";' \
+        > /etc/apt/apt.conf.d/02proxy ; fi
+RUN test -n "$DEBOOTSTRAP_PROXY"
+
+RUN mkdir -p /usr/share/cd-boot-images-amd64/tree/boot/grub
+RUN echo '\
+menuentry "Choose an Ubuntu version to install" { \n\
+        set gfxpayload=keep\n\
+        linux /casper/vmlinuz iso-chooser-menu casper-getty ip=dhcp ---\n\
+        initrd /casper/initrd\n\
+}\n' > /usr/share/cd-boot-images-amd64/tree/boot/grub/grub.cfg
+
+RUN apt-get update && apt-get -y upgrade
+RUN apt-get --no-install-recommends -y build-dep -- /build/src
+RUN cd /build/src ; dpkg-buildpackage -b
+RUN env DEBIAN_FRONTEND=noninteractive \
+    apt-get install --no-install-recommends -y \
+        cd-boot-images-amd64 openssl ca-certificates isc-dhcp-client \
+        linux-generic
+RUN cd /build ; dpkg -i *.deb || true ; \
+    env DEBIAN_FRONTEND=noninteractive \
+    apt-get -f --no-install-recommends -y install
+
+RUN mkdir -p "/etc/initramfs-tools/conf.d"
+RUN echo '\
+export CASPER_GENERATE_UUID=1\n\
+'> /etc/initramfs-tools/conf.d/casperize.conf
+
